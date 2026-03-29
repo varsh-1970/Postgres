@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pgwebapp — PostgreSQL Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Tokens ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0d1117;
+  --bg2:        #161b22;
+  --bg3:        #21262d;
+  --bg4:        #2d333b;
+  --border:     #30363d;
+  --border2:    #3d444d;
+  --text:       #e6edf3;
+  --text2:      #8b949e;
+  --text3:      #6e7681;
+  --green:      #3fb950;
+  --green-dim:  #238636;
+  --blue:       #58a6ff;
+  --blue-dim:   #1f6feb;
+  --orange:     #e3b341;
+  --red:        #f85149;
+  --purple:     #bc8cff;
+  --cyan:       #39d3f2;
+  --accent:     #00e5ff;
+  --accent-dim: #0097a7;
+  --radius:     6px;
+  --radius-lg:  10px;
+  --mono:       'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --sans:       'Syne', 'Segoe UI', system-ui, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Topbar ─────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 48px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  user-select: none;
+}
+.logo svg { width: 22px; height: 22px; }
+
+.logo-sub { color: var(--text2); font-weight: 500; font-size: 13px; }
+
+.topbar-sep { flex: 1; }
+
+.conn-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: var(--mono);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+.conn-badge.connected {
+  border-color: var(--green-dim);
+  background: rgba(63, 185, 80, 0.08);
+}
+.conn-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: background 0.3s;
+}
+.connected .conn-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+/* ── Main Split ──────────────────────────────────────────── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 12px 14px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Connect Form ────────────────────────────────────────── */
+.conn-form { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.form-row { display: flex; gap: 8px; }
+.form-row .field { flex: 1; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field input, .field select {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--blue-dim);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.12);
+}
+.field input::placeholder { color: var(--text3); }
+
+/* SSL Toggle */
+.ssl-toggle {
+  display: flex;
+  gap: 6px;
+}
+.ssl-opt {
+  flex: 1;
+  padding: 5px 4px;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ssl-opt:hover { border-color: var(--border2); color: var(--text); }
+.ssl-opt.active { background: var(--blue-dim); border-color: var(--blue); color: #fff; }
+
+/* Buttons */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--accent-dim);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent); color: var(--bg); }
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--red);
+}
+.btn-danger:hover { background: rgba(248, 81, 73, 0.1); border-color: var(--red); }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--bg3); }
+.btn:disabled { opacity: 0.4; pointer-events: none; }
+
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+.conn-status-msg {
+  font-size: 11px;
+  font-family: var(--mono);
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  min-height: 30px;
+  word-break: break-all;
+  transition: all 0.3s;
+}
+.conn-status-msg.ok { color: var(--green); border-color: var(--green-dim); background: rgba(63,185,80,0.07); }
+.conn-status-msg.err { color: var(--red); border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.07); }
+
+/* ── Quick Queries ───────────────────────────────────────── */
+.quick-queries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.quick-queries::-webkit-scrollbar { width: 4px; }
+.quick-queries::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.qgroup-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 8px 0 4px;
+}
+
+.qbtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  border: 1px solid transparent;
+  color: var(--text2);
+  font-size: 12px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.qbtn:hover {
+  background: var(--bg4);
+  border-color: var(--border2);
+  color: var(--text);
+}
+.qbtn-icon {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ── Content Area ────────────────────────────────────────── */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Query Editor ────────────────────────────────────────── */
+.editor-area {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-toolbar-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+
+.tab-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.run-info {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+
+.editor-wrap {
+  position: relative;
+  display: flex;
+}
+
+.line-nums {
+  padding: 10px 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text3);
+  background: var(--bg2);
+  text-align: right;
+  user-select: none;
+  min-width: 44px;
+  border-right: 1px solid var(--border);
+  white-space: pre;
+}
+
+#query-input {
+  flex: 1;
+  background: var(--bg2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px 14px;
+  border: none;
+  outline: none;
+  resize: none;
+  height: 160px;
+  tab-size: 2;
+  caret-color: var(--accent);
+}
+#query-input::selection { background: rgba(88, 166, 255, 0.25); }
+
+.editor-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 14px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+.editor-status span { display: flex; align-items: center; gap: 4px; }
+
+/* ── Results ─────────────────────────────────────────────── */
+.results-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.results-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+}
+
+.results-meta {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.meta-chip {
+  font-size: 11px;
+  font-family: var(--mono);
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.meta-chip.success { color: var(--green); border-color: var(--green-dim); }
+.meta-chip.error   { color: var(--red);   border-color: rgba(248,81,73,0.3); }
+
+.results-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+.results-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.results-scroll::-webkit-scrollbar-track { background: var(--bg2); }
+.results-scroll::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 4px; }
+
+/* Empty / Error state */
+.result-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.result-empty svg { opacity: 0.3; }
+
+.result-error {
+  margin: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: rgba(248,81,73,0.08);
+  border: 1px solid rgba(248,81,73,0.3);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.result-command {
+  margin: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: rgba(63,185,80,0.08);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+/* ── Data Table ──────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg3);
+  padding: 7px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text2);
+  border-bottom: 2px solid var(--border2);
+  white-space: nowrap;
+  z-index: 1;
+}
+.data-table th .col-type {
+  font-weight: 400;
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: 4px;
+}
+
+.data-table td {
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-table td.null-val { color: var(--text3); font-style: italic; }
+.data-table td.num-val  { color: var(--cyan); }
+.data-table td.bool-val { color: var(--orange); }
+
+.data-table tr:hover td { background: rgba(88,166,255,0.04); }
+.data-table tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
+
+/* Row counter */
+.data-table tbody tr td:first-child::before {
+  content: attr(data-row);
+  color: var(--text3);
+  font-size: 10px;
+  margin-right: 10px;
+  user-select: none;
+}
+
+/* ── Loading Spinner ─────────────────────────────────────── */
+.spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.spin-ring {
+  width: 32px; height: 32px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Kbd hint ─────────────────────────────────────────────── */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+}
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.fade-in { animation: fadeIn 0.2s ease forwards; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { width: 260px; }
+  #query-input { height: 120px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ── -->
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+        <path d="M3 5v4c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        <path d="M3 9v4c0 1.66 4 3 9 3s9-1.34 9-3V9"/>
+        <path d="M3 13v4c0 1.66 4 3 9 3s9-1.34 9-3v-4"/>
+      </svg>
+      pgwebapp
+      <span class="logo-sub">/ PostgreSQL Studio</span>
+    </div>
+    <div class="topbar-sep"></div>
+    <div class="conn-badge" id="conn-badge">
+      <div class="conn-dot"></div>
+      <span id="badge-text">Not connected</span>
+    </div>
+  </header>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+
+      <!-- Connect Panel -->
+      <div class="panel-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+        Connection
+      </div>
+
+      <div class="conn-form">
+        <div class="form-row">
+          <div class="field" style="flex:2">
+            <label>Host</label>
+            <input type="text" id="f-host" placeholder="localhost" value="localhost">
+          </div>
+          <div class="field" style="flex:1">
+            <label>Port</label>
+            <input type="text" id="f-port" placeholder="5432" value="5432">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Database</label>
+          <input type="text" id="f-dbname" placeholder="postgres">
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="f-user" placeholder="postgres">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="f-password" placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>SSL Mode</label>
+          <div class="ssl-toggle" id="ssl-toggle">
+            <div class="ssl-opt" data-val="disable">disable</div>
+            <div class="ssl-opt active" data-val="prefer">prefer</div>
+            <div class="ssl-opt" data-val="require">require</div>
+            <div class="ssl-opt" data-val="verify-full">verify-full</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label>Timeout (s)</label>
+            <input type="number" id="f-timeout" placeholder="10" value="10" min="1" max="60">
+          </div>
+          <div class="field">
+            <label>App Name</label>
+            <input type="text" id="f-appname" placeholder="pgwebapp" value="pgwebapp">
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-connect" onclick="doConnect()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+            Connect
+          </button>
+          <button class="btn btn-danger" id="btn-disconnect" onclick="doDisconnect()" disabled>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            Disconnect
+          </button>
+        </div>
+
+        <div class="conn-status-msg" id="conn-msg">Enter connection details and click Connect</div>
+      </div>
+
+      <!-- Quick Queries -->
+      <div class="panel-header" style="border-top: 1px solid var(--border)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        Quick Queries
+      </div>
+
+      <div class="quick-queries" id="quick-queries">
+
+        <div class="qgroup-label">📋 Schema Inspection</div>
+
+        <button class="qbtn" onclick="loadQuery('SELECT table_name, table_type\nFROM information_schema.tables\nWHERE table_schema = \'public\'\nORDER BY table_name;')">
+          <div class="qbtn-icon" style="background:rgba(88,166,255,0.15);color:var(--blue)">▤</div>
+          List all tables
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT column_name, data_type, character_maximum_length,\n       is_nullable, column_default\nFROM information_schema.columns\nWHERE table_schema = \'public\'\n  AND table_name = \'your_table\'\nORDER BY ordinal_position;')">
+          <div class="qbtn-icon" style="background:rgba(88,166,255,0.15);color:var(--blue)">≡</div>
+          Table columns
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  t.table_name,\n  kcu.column_name,\n  ccu.table_name AS foreign_table,\n  ccu.column_name AS foreign_column\nFROM information_schema.table_constraints t\nJOIN information_schema.key_column_usage kcu\n  ON t.constraint_name = kcu.constraint_name\nJOIN information_schema.constraint_column_usage ccu\n  ON ccu.constraint_name = t.constraint_name\nWHERE t.constraint_type = \'FOREIGN KEY\';')">
+          <div class="qbtn-icon" style="background:rgba(188,140,255,0.15);color:var(--purple)">⇌</div>
+          Foreign keys
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT indexname, tablename, indexdef\nFROM pg_indexes\nWHERE schemaname = \'public\'\nORDER BY tablename, indexname;')">
+          <div class="qbtn-icon" style="background:rgba(188,140,255,0.15);color:var(--purple)">⚡</div>
+          List indexes
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT schemaname, viewname, definition\nFROM pg_views\nWHERE schemaname = \'public\'\nORDER BY viewname;')">
+          <div class="qbtn-icon" style="background:rgba(57,211,242,0.15);color:var(--cyan)">◈</div>
+          List views
+        </button>
+
+        <div class="qgroup-label">📊 Database Stats</div>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  pg_database.datname AS database,\n  pg_size_pretty(pg_database_size(pg_database.datname)) AS size\nFROM pg_database\nORDER BY pg_database_size(pg_database.datname) DESC;')">
+          <div class="qbtn-icon" style="background:rgba(227,179,65,0.15);color:var(--orange)">💾</div>
+          Database sizes
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  relname AS table_name,\n  n_live_tup AS row_count,\n  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,\n  pg_size_pretty(pg_relation_size(relid)) AS table_size,\n  pg_size_pretty(pg_indexes_size(relid)) AS indexes_size\nFROM pg_stat_user_tables\nORDER BY pg_total_relation_size(relid) DESC;')">
+          <div class="qbtn-icon" style="background:rgba(227,179,65,0.15);color:var(--orange)">📐</div>
+          Table sizes & rows
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  pid,\n  now() - pg_stat_activity.query_start AS duration,\n  query,\n  state\nFROM pg_stat_activity\nWHERE (now() - pg_stat_activity.query_start) > interval \'5 minutes\'\n  AND state != \'idle\';')">
+          <div class="qbtn-icon" style="background:rgba(248,81,73,0.15);color:var(--red)">⏱</div>
+          Long-running queries
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT version();')">
+          <div class="qbtn-icon" style="background:rgba(63,185,80,0.15);color:var(--green)">ℹ</div>
+          Server version
+        </button>
+
+        <div class="qgroup-label">🔐 Users & Permissions</div>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  rolname AS username,\n  rolsuper AS is_superuser,\n  rolinherit AS inherit_privileges,\n  rolcreaterole AS can_create_roles,\n  rolcreatedb AS can_create_db,\n  rolcanlogin AS can_login,\n  rolvaliduntil AS password_expiry\nFROM pg_roles\nORDER BY rolname;')">
+          <div class="qbtn-icon" style="background:rgba(57,211,242,0.15);color:var(--cyan)">👤</div>
+          List all users/roles
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  grantee,\n  table_schema,\n  table_name,\n  privilege_type\nFROM information_schema.role_table_grants\nWHERE grantee != \'PUBLIC\'\nORDER BY grantee, table_name;')">
+          <div class="qbtn-icon" style="background:rgba(57,211,242,0.15);color:var(--cyan)">🔑</div>
+          Table permissions
+        </button>
+
+        <div class="qgroup-label">⚙️ Maintenance</div>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  schemaname,\n  tablename,\n  last_vacuum,\n  last_autovacuum,\n  last_analyze,\n  last_autoanalyze,\n  n_dead_tup AS dead_tuples\nFROM pg_stat_user_tables\nORDER BY n_dead_tup DESC;')">
+          <div class="qbtn-icon" style="background:rgba(63,185,80,0.15);color:var(--green)">🧹</div>
+          Vacuum / analyze stats
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  pid,\n  usename,\n  application_name,\n  client_addr,\n  state,\n  left(query, 80) AS query_preview\nFROM pg_stat_activity\nWHERE state IS NOT NULL\nORDER BY state, pid;')">
+          <div class="qbtn-icon" style="background:rgba(63,185,80,0.15);color:var(--green)">🔗</div>
+          Active connections
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  locktype,\n  relation::regclass AS table,\n  mode,\n  granted,\n  pid\nFROM pg_locks\nWHERE relation IS NOT NULL\nORDER BY relation, mode;')">
+          <div class="qbtn-icon" style="background:rgba(248,81,73,0.15);color:var(--red)">🔒</div>
+          Lock information
+        </button>
+
+        <button class="qbtn" onclick="loadQuery('SELECT\n  query,\n  calls,\n  total_exec_time,\n  mean_exec_time,\n  rows\nFROM pg_stat_statements\nORDER BY mean_exec_time DESC\nLIMIT 20;')">
+          <div class="qbtn-icon" style="background:rgba(227,179,65,0.15);color:var(--orange)">📈</div>
+          Slowest queries (pg_stat_statements)
+        </button>
+
+      </div>
+    </aside>
+
+    <!-- ── Content ── -->
+    <div class="content">
+
+      <!-- Editor -->
+      <div class="editor-area">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <span class="tab-label">query.sql</span>
+            <span class="run-info"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run</span>
+          </div>
+          <button class="btn btn-ghost" onclick="clearEditor()" style="font-size:11px;padding:4px 10px">Clear</button>
+          <button class="btn btn-primary" id="btn-run" onclick="runQuery()" disabled style="padding:5px 14px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Run Query
+          </button>
+        </div>
+
+        <div class="editor-wrap">
+          <div class="line-nums" id="line-nums">1</div>
+          <textarea id="query-input" spellcheck="false"
+            placeholder="-- Write your SQL here&#10;-- Use Ctrl+Enter to execute&#10;&#10;SELECT * FROM your_table LIMIT 100;"
+            oninput="updateLineNums()" onkeydown="editorKeydown(event)"></textarea>
+        </div>
+
+        <div class="editor-status">
+          <span id="cur-pos">Ln 1, Col 1</span>
+          <span>UTF-8</span>
+          <span>SQL</span>
+          <span id="char-count">0 chars</span>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-area">
+        <div class="results-header">
+          <span class="results-title">Results</span>
+          <div class="results-meta" id="results-meta"></div>
+          <button class="btn btn-ghost" id="btn-export" onclick="exportCSV()"
+            style="font-size:11px;padding:3px 10px;display:none">
+            ↓ Export CSV
+          </button>
+        </div>
+        <div class="results-scroll" id="results-scroll">
+          <div class="result-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <span>No results yet — run a query to see data here</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ──────────────────────────────────────────────── */
+let sslMode = 'prefer';
+let lastResultData = null;
+let isConnected = false;
+
+/* ── SSL Toggle ─────────────────────────────────────────── */
+document.querySelectorAll('.ssl-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.ssl-opt').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    sslMode = el.dataset.val;
+  });
+});
+
+/* ── Line Numbers ────────────────────────────────────────── */
+function updateLineNums() {
+  const ta = document.getElementById('query-input');
+  const lines = ta.value.split('\n').length;
+  const nums = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+  document.getElementById('line-nums').textContent = nums;
+  document.getElementById('char-count').textContent = ta.value.length + ' chars';
+  updateCursorPos();
+}
+
+function updateCursorPos() {
+  const ta = document.getElementById('query-input');
+  const val = ta.value.substring(0, ta.selectionStart);
+  const lines = val.split('\n');
+  const ln = lines.length;
+  const col = lines[lines.length - 1].length + 1;
+  document.getElementById('cur-pos').textContent = `Ln ${ln}, Col ${col}`;
+}
+
+document.getElementById('query-input').addEventListener('click', updateCursorPos);
+document.getElementById('query-input').addEventListener('keyup', updateCursorPos);
+
+/* ── Editor Keyboard ─────────────────────────────────────── */
+function editorKeydown(e) {
+  const ta = e.target;
+
+  // Ctrl+Enter → run
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runQuery();
+    return;
+  }
+
+  // Tab → insert 2 spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end);
+    ta.selectionStart = ta.selectionEnd = start + 2;
+    updateLineNums();
+    return;
+  }
+}
+
+/* ── Load Quick Query ────────────────────────────────────── */
+function loadQuery(sql) {
+  document.getElementById('query-input').value = sql;
+  updateLineNums();
+  document.getElementById('query-input').focus();
+}
+
+function clearEditor() {
+  document.getElementById('query-input').value = '';
+  updateLineNums();
+}
+
+/* ── Connect / Disconnect ────────────────────────────────── */
+async function doConnect() {
+  const btn = document.getElementById('btn-connect');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+
+  const fields = {
+    host:             document.getElementById('f-host').value,
+    port:             document.getElementById('f-port').value,
+    dbname:           document.getElementById('f-dbname').value,
+    user:             document.getElementById('f-user').value,
+    password:         document.getElementById('f-password').value,
+    sslmode:          sslMode,
+    connect_timeout:  document.getElementById('f-timeout').value,
+    application_name: document.getElementById('f-appname').value,
+  };
+
+  const body = Object.entries(fields)
+    .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+
+  try {
+    const res = await fetch('/api/connect', { method:'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'}, body });
+    const data = await res.json();
+    setConnStatus(data);
+  } catch(e) {
+    setConnStatus({ status:'error', message: e.message });
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Connect`;
+}
+
+async function doDisconnect() {
+  try {
+    await fetch('/api/disconnect', { method:'POST' });
+  } catch(e) {}
+  setConnStatus({ status:'disconnected', message:'Disconnected from database' });
+}
+
+function setConnStatus(data) {
+  const badge  = document.getElementById('conn-badge');
+  const btext  = document.getElementById('badge-text');
+  const msg    = document.getElementById('conn-msg');
+  const btnD   = document.getElementById('btn-disconnect');
+  const btnRun = document.getElementById('btn-run');
+
+  if (data.status === 'ok') {
+    isConnected = true;
+    badge.classList.add('connected');
+    btext.textContent = `${data.user}@${data.host}/${data.database}`;
+    msg.textContent = `✓ Connected — PostgreSQL ${data.server_version}`;
+    msg.className = 'conn-status-msg ok';
+    btnD.disabled = false;
+    btnRun.disabled = false;
+  } else {
+    isConnected = false;
+    badge.classList.remove('connected');
+    btext.textContent = 'Not connected';
+    msg.textContent = data.message || 'Connection failed';
+    msg.className = 'conn-status-msg err';
+    btnD.disabled = true;
+    btnRun.disabled = true;
+  }
+}
+
+/* ── Run Query ───────────────────────────────────────────── */
+async function runQuery() {
+  if (!isConnected) return;
+  const query = document.getElementById('query-input').value.trim();
+  if (!query) return;
+
+  // Show spinner
+  const scroll = document.getElementById('results-scroll');
+  const meta   = document.getElementById('results-meta');
+  scroll.innerHTML = '<div class="spinner"><div class="spin-ring"></div></div>';
+  meta.innerHTML = '';
+  document.getElementById('btn-export').style.display = 'none';
+  lastResultData = null;
+
+  const body = `query=${encodeURIComponent(query)}`;
+
+  try {
+    const res  = await fetch('/api/query', { method:'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'}, body });
+    const data = await res.json();
+    renderResult(data);
+  } catch(e) {
+    renderResult({ status:'error', message: e.message, elapsed_ms:0 });
+  }
+}
+
+/* ── Render Result ───────────────────────────────────────── */
+function renderResult(data) {
+  const scroll = document.getElementById('results-scroll');
+  const meta   = document.getElementById('results-meta');
+
+  const elapsed = data.elapsed_ms ? `${data.elapsed_ms.toFixed(1)} ms` : '';
+
+  if (data.status === 'error') {
+    scroll.innerHTML = `<div class="result-error fade-in">⚠ ${escHtml(data.message)}</div>`;
+    meta.innerHTML = `<span class="meta-chip error">Error</span>
+      ${elapsed ? `<span class="meta-chip">${elapsed}</span>` : ''}`;
+    return;
+  }
+
+  if (data.type === 'COMMAND') {
+    scroll.innerHTML = `<div class="result-command fade-in">
+      ✓ <strong>${escHtml(data.command)}</strong>
+      ${data.rows_affected ? ` — ${data.rows_affected} row(s) affected` : ''}
+    </div>`;
+    meta.innerHTML = `<span class="meta-chip success">OK</span>
+      ${elapsed ? `<span class="meta-chip">${elapsed}</span>` : ''}`;
+    return;
+  }
+
+  if (data.type === 'SELECT') {
+    lastResultData = data;
+    const cols = data.columns;
+    const rows = data.data;
+
+    if (rows.length === 0) {
+      scroll.innerHTML = `<div class="result-empty fade-in">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+        <span>Query returned 0 rows</span>
+      </div>`;
+    } else {
+      let html = `<table class="data-table fade-in"><thead><tr>`;
+      cols.forEach(c => {
+        const typeName = pgTypeName(c.type);
+        html += `<th>${escHtml(c.name)}<span class="col-type">${typeName}</span></th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      rows.forEach((row, ri) => {
+        html += `<tr>`;
+        row.forEach((cell, ci) => {
+          const cls = cellClass(cell, cols[ci]?.type);
+          if (cell === null) {
+            html += `<td class="null-val" data-row="${ri+1}">NULL</td>`;
+          } else {
+            html += `<td class="${cls}" data-row="${ri+1}">${escHtml(String(cell))}</td>`;
+          }
+        });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+      scroll.innerHTML = html;
+      document.getElementById('btn-export').style.display = '';
+    }
+
+    meta.innerHTML = `<span class="meta-chip success">${rows.length} row${rows.length!==1?'s':''}</span>
+      <span class="meta-chip">${cols.length} col${cols.length!==1?'s':''}</span>
+      ${elapsed ? `<span class="meta-chip">${elapsed}</span>` : ''}`;
+  }
+}
+
+/* ── Export CSV ──────────────────────────────────────────── */
+function exportCSV() {
+  if (!lastResultData) return;
+  const { columns, data } = lastResultData;
+  let csv = columns.map(c => `"${c.name}"`).join(',') + '\n';
+  data.forEach(row => {
+    csv += row.map(c => c === null ? '' : `"${String(c).replace(/"/g,'""')}"`).join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'query_result.csv';
+  a.click();
+}
+
+/* ── Helpers ─────────────────────────────────────────────── */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function cellClass(val, typeOid) {
+  if (val === null) return 'null-val';
+  // Numeric OIDs: int2=21, int4=23, int8=20, float4=700, float8=701, numeric=1700
+  if ([20,21,23,700,701,1700].includes(typeOid)) return 'num-val';
+  // Bool OID: 16
+  if (typeOid === 16) return 'bool-val';
+  return '';
+}
+
+function pgTypeName(oid) {
+  const map = {
+    16:'bool', 17:'bytea', 18:'char', 19:'name', 20:'int8', 21:'int2',
+    23:'int4', 25:'text', 26:'oid', 700:'float4', 701:'float8', 1082:'date',
+    1083:'time', 1114:'timestamp', 1184:'timestamptz', 1700:'numeric',
+    2950:'uuid', 3802:'jsonb', 114:'json', 1043:'varchar', 1042:'bpchar',
+    1000:'bool[]', 1007:'int4[]', 1009:'text[]',
+  };
+  return map[oid] || `#${oid}`;
+}
+
+/* ── Init ────────────────────────────────────────────────── */
+updateLineNums();
+
+// Poll connection status
+async function pollStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (data.connected !== isConnected) {
+      if (data.connected) {
+        setConnStatus({ status:'ok', user:data.user, host:data.host, database:data.database, server_version:'' });
+      } else {
+        setConnStatus({ status:'error', message:'Not connected' });
+      }
+    }
+  } catch(e) {}
+}
+setInterval(pollStatus, 10000);
+</script>
+</body>
+</html>
